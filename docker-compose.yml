@@ -1,0 +1,56 @@
+version: "3.9"
+
+services:
+  mysql:
+    image: mysql:8
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: users
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 10
+      interval: 3s
+
+  backend:
+    build: ./server
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_HOST: mysql
+      DB_USER: root
+      DB_PASS: root
+      DB_NAME: users
+      JWT_SECRET: 9f370cb8fe57ce8917d1c12316c588fe25554374dc3010bd64bbffa71478da0faebc33de948d70bb86ec22b170924a0268541c821537ae61f38495450f042f7a
+      PORT: 4000
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./server:/app
+    working_dir: /app
+    command: ["npm", "run", "start"]
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:4000
+    volumes:
+      - .:/app
+      - /app/node_modules
+    working_dir: /app
+    command: ["npm", "run", "dev", "--", "--host"]
+
+volumes:
+  mysql_data:
