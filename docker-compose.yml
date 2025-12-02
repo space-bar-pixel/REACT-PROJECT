@@ -39,35 +39,31 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-    environment:
-      DB_HOST: mysql
-      DB_USER: root
-      DB_PASS: root
-      DB_NAME: users
-      JWT_SECRET: 9f370cb8fe57ce8917d1c12316c588fe25554374dc3010bd64bbffa71478da0faebc33de948d70bb86ec22b170924a0268541c821537ae61f38495450f042f7a
-      PORT: 4000
+    env_file:
+      - ./server/.env
     ports:
       - "4000:4000"
     volumes:
-      - ./server:/app
-      - /app/node_modules
+      - ./server:/app:cached
+      - backend_node_modules:/app/node_modules
     working_dir: /app
   frontend:
     container_name: frontend
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     depends_on:
       - backend
     ports:
       - "5173:5173"
-    environment:  
-      VITE_API_URL: http://localhost:4000
+    environment:
+      VITE_API_URL: /api
     volumes:
-      - .:/app
-      - /app/node_modules
+      - .:/app:cached
+      - frontend_node_modules:/app/node_modules
     working_dir: /app
-    command: ["npm", "run", "dev", "--", "--host"]
 
 volumes:
   mysql_data:
+  backend_node_modules:
+  frontend_node_modules:

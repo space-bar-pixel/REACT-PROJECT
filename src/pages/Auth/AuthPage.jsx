@@ -41,7 +41,7 @@ export default function AuthPage() {
         setIsLoading(true);
 
         try {
-            const response = await fetch(`${API}/api/signup`, {
+            const response = await fetch(`${API}/signup`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
@@ -86,7 +86,7 @@ export default function AuthPage() {
         setIsLoading(true);
 
         try {
-            const response = await fetch(`${API}/api/signin`, {
+            const response = await fetch(`${API}/signin`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",

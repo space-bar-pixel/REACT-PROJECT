@@ -14,7 +14,7 @@ export default function HomePage() {
 
     const verify = async () => {
       try {
-        const res = await fetch(`${API}/api/me`, {
+        const res = await fetch(`${API}/me`, {
           method: "GET",
           credentials: "include",
         });
@@ -41,7 +41,7 @@ export default function HomePage() {
   }, [navigate]);
 
   const logout = async () => {
-    await fetch(`${API}/api/logout`, {
+    await fetch(`${API}/logout`, {
       method: "POST",
       credentials: "include",
     });
@@ -60,7 +60,7 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-      <h1 className="text-3xl font-bold">Welcome, {username || "User"} 👋</h1>
+      <h1 className="text-3xl font-bold">Welcome, {username || "User"} </h1>
       <p className="text-gray-600">You are now logged in.</p>
       <button
         onClick={logout}
