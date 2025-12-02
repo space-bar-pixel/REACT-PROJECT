@@ -1,0 +1,9 @@
+node_modules
+server/node_modules
+mysql_data
+mysql-init
+.git
+.gitignore
+Dockerfile
+docker-compose.yml
+.env

@@ -5,6 +5,7 @@ import "../../App.css";
 export default function AuthPage() {
     const navigate = useNavigate();
     const [isSignUpActive, setIsSignUpActive] = useState(false);
+    const [isLoading, setIsLoading] = useState(false); 
 
     const [username, setUsername] = useState("");
     const [signUpEmail, setSignUpEmail] = useState("");
@@ -19,23 +20,28 @@ export default function AuthPage() {
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()])[A-Za-z\d!@#$%^&*()]{8,}$/;
     const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
+    const API = import.meta.env.VITE_API_URL;
+
     const handleSignUp = async (e) => {
         e.preventDefault();
         setSignUpError(null);
+        if (isLoading) return;
 
         if (!username || !signUpEmail || !signUpPassword || !confirmPassword)
-            return alert("Please fill all fields!");
+            return setSignUpError("Please fill all fields!");
         if (!emailRegex.test(signUpEmail))
-            return alert("Please enter a valid email!");
+            return setSignUpError("Please enter a valid email!");
         if (!passwordRegex.test(signUpPassword))
-            return alert(
-                "Password must contain uppercase, lowercase, number and symbol."
+            return setSignUpError(
+                "Password must be at least 8 chars and contain uppercase, lowercase, number and symbol."
             );
         if (signUpPassword !== confirmPassword)
-            return alert("Passwords do not match!");
+            return setSignUpError("Passwords do not match!");
+        
+        setIsLoading(true);
 
         try {
-            const response = await fetch("http://localhost:4000/api/signup", {
+            const response = await fetch(`${API}/api/signup`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
@@ -50,29 +56,37 @@ export default function AuthPage() {
             const data = text ? JSON.parse(text) : {};
 
             if (response.ok) {
-                alert("Account created successfully!");
                 setIsSignUpActive(false);
+                setUsername('');
+                setSignUpEmail('');
+                setSignUpPassword('');
+                setConfirmPassword('');
             } else {
                 setSignUpError(data.error || "Sign up failed!");
             }
         } catch (err) {
             console.error("Sign up error:", err);
             setSignUpError("Network error, please try again later.");
+        } finally {
+            setIsLoading(false);
         }
     };
 
     const handleSignIn = async (e) => {
         e.preventDefault();
         setSignInError(null);
+        if (isLoading) return;
 
-        if (!emailRegex.test(signInEmail)) return alert("Enter a valid email!");
+        if (!emailRegex.test(signInEmail)) return setSignInError("Enter a valid email!");
         if (!passwordRegex.test(signInPassword))
-            return alert(
+            return setSignInError(
                 "Password must contain uppercase, lowercase, number and symbol."
             );
+        
+        setIsLoading(true);
 
         try {
-            const response = await fetch("http://localhost:4000/api/signin", {
+            const response = await fetch(`${API}/api/signin`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
@@ -94,6 +108,8 @@ export default function AuthPage() {
         } catch (err) {
             console.error("Sign in error:", err);
             setSignInError("Network error, please check server.");
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -105,7 +121,7 @@ export default function AuthPage() {
 
                     <input
                         type="text"
-                        placeholder="Username"s
+                        placeholder="Username" 
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                     />
@@ -132,7 +148,9 @@ export default function AuthPage() {
                     />
 
                     {signUpError && <p className="text-red-500">{signUpError}</p>}
-                    <button type="submit">Sign Up</button>
+                    <button type="submit" disabled={isLoading}>
+                        {isLoading ? 'Signing Up...' : 'Sign Up'}
+                    </button>
                 </form>
             </div>
 
@@ -155,9 +173,11 @@ export default function AuthPage() {
                     />
 
                     {signInError && (
-                        <p className="head1 text-red-500">{signInError}</p>
+                        <p className="text-red-500">{signInError}</p>
                     )}
-                    <button type="submit">Sign In</button>
+                    <button type="submit" disabled={isLoading}>
+                         {isLoading ? 'Signing In...' : 'Sign In'}
+                    </button>
                 </form>
             </div>
 
@@ -176,6 +196,7 @@ export default function AuthPage() {
                     </div>
                 </div>
             </div>
+            
         </div>
     );
 }

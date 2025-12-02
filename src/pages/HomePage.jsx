@@ -7,12 +7,14 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState(localStorage.getItem("username"));
 
+  const API = import.meta.env.VITE_API_URL;
+
   useEffect(() => {
     let cancelled = false;
 
     const verify = async () => {
       try {
-        const res = await fetch("http://localhost:4000/api/me", {
+        const res = await fetch(`${API}/api/me`, {
           method: "GET",
           credentials: "include",
         });
@@ -39,7 +41,7 @@ export default function HomePage() {
   }, [navigate]);
 
   const logout = async () => {
-    await fetch("http://localhost:4000/api/logout", {
+    await fetch(`${API}/api/logout`, {
       method: "POST",
       credentials: "include",
     });

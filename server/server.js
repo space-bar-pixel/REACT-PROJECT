@@ -1,9 +1,7 @@
 /* global process */
-
-// ======================== BACKEND (server.js) ========================
 import express from "express";
 import cors from "cors";
-import mysql from "mysql2";
+import mysql from "mysql2/promise"; 
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import cookieParser from "cookie-parser";
@@ -15,26 +13,56 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser());
 
+const allowedOrigin = process.env.CLIENT_URL;
+
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: function (origin, callback) {
+      if (!origin || origin === allowedOrigin) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
 
-const db = mysql.createConnection({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASS,
-  database: process.env.DB_NAME,
-});
+let dbConnection;
 
-db.connect((err) => {
-  if (err) console.error("DB connection error:", err);
-  else console.log("✅ MySQL connected");
-});
+(async () => {
+    try {
+        dbConnection = await mysql.createConnection({
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASS,
+            database: process.env.DB_NAME,
+        });
+        console.log("MySQL connected");
 
-// SIGNUP ROUTE
+        app.listen(process.env.PORT, () =>
+            console.log(`Server running on port ${process.env.PORT}`)
+        );
+
+    } catch (err) {
+        console.error("DB connection error:", err);
+        process.exit(1); 
+    }
+})();
+
+const authenticateToken = (req, res, next) => {
+    const token = req.cookies.token;
+    if (!token) return res.status(401).json({ error: "Unauthorized" });
+
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ error: "Invalid token" });
+        req.user = user;
+        next();
+    });
+};
+
 app.post("/api/signup", async (req, res) => {
   const { username, email, password } = req.body;
   if (!username || !email || !password)
@@ -42,83 +70,73 @@ app.post("/api/signup", async (req, res) => {
 
   try {
     const hashed = await bcrypt.hash(password, 10);
-    db.query(
+    await dbConnection.query(
       "INSERT INTO users (username, email, password) VALUES (?, ?, ?)",
-      [username, email, hashed],
-      (err) => {
-        if (err) {
-          console.error("Signup error:", err);
-          return res.status(500).json({ error: "Database error: " + err.code });
-        }
-        res.status(201).json({ message: "Account created successfully" });
-      }
+      [username, email, hashed]
     );
+    res.status(201).json({ message: "Account created successfully" });
   } catch (err) {
-    console.error("Unexpected signup error:", err);
+    console.error("Signup error:", err);
+    res.status(500).json({ error: "Server error or email already exists" });
+  }
+});
+
+app.post("/api/signin", async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const [results] = await dbConnection.query(
+      "SELECT * FROM users WHERE email = ?",
+      [email]
+    );
+
+    if (results.length === 0)
+      return res.status(401).json({ error: "Invalid credentials" });
+
+    const user = results[0];
+    const valid = await bcrypt.compare(password, user.password);
+
+    if (!valid) return res.status(401).json({ error: "Invalid credentials" });
+
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+      expiresIn: "2h",
+    });
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      sameSite: "Strict",
+      secure: process.env.NODE_ENV === 'production',
+      path: "/",
+      maxAge: 2 * 60 * 60 * 1000,
+    });
+
+    res.json({ message: "Logged in" });
+  } catch (err) {
+    console.error("Signin error:", err);
     res.status(500).json({ error: "Server error" });
   }
 });
 
-// SIGNIN ROUTE
-app.post("/api/signin", (req, res) => {
-  const { email, password } = req.body;
-
-  db.query(
-    "SELECT * FROM users WHERE email = ?",
-    [email],
-    async (err, result) => {
-      if (err || result.length === 0)
-        return res.status(401).json({ error: "Invalid credentials" });
-
-      const user = result[0];
-      const valid = await bcrypt.compare(password, user.password);
-
-      if (!valid) return res.status(401).json({ error: "Invalid credentials" });
-
-      const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
-        expiresIn: "2h",
-      });
-
-      res.cookie("token", token, {
-        httpOnly: true,
-        sameSite: "lax",
-        secure: false,
-        path: "/",
-        maxAge: 2 * 60 * 60 * 1000,
-      });
-
-      res.json({ message: "Logged in" });
-    }
-  );
-});
-
-// PROTECTED ROUTE
-app.get("/api/me", (req, res) => {
-  const token = req.cookies.token;
-  if (!token) return res.status(401).json({ error: "Unauthorized" });
-
+app.get("/api/me", authenticateToken, async (req, res) => {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    db.query(
+    const [results] = await dbConnection.query(
       "SELECT id, username, email FROM users WHERE id = ?",
-      [decoded.id],
-      (err, result) => {
-        if (err || result.length === 0)
-          return res.status(401).json({ error: "Unauthorized" });
-        res.json(result[0]);
-      }
+      [req.user.id]
     );
-  } catch {
-    res.status(401).json({ error: "Invalid token" });
+
+    if (results.length === 0)
+      return res.status(401).json({ error: "Unauthorized" });
+    
+    res.json(results[0]);
+
+  } catch (err) {
+    console.error("Me route error:", err);
+    res.status(500).json({ error: "Server error" });
   }
 });
 
 // LOGOUT ROUTE
 app.post("/api/logout", (req, res) => {
-  res.clearCookie("token", { path: "/" });
+  res.clearCookie("token", { path: "/", sameSite: "Strict", secure: process.env.NODE_ENV === 'production' });
   res.json({ message: "Logged out" });
 });
-
-app.listen(process.env.PORT || 4000, () =>
-  console.log(`🚀 Server running on port ${process.env.PORT || 4000}`)
-);
