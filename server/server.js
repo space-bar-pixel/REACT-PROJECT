@@ -34,7 +34,6 @@ const allowedOrigin = process.env.CLIENT_URL || '*';
 app.use(
   cors({
     origin: function (origin, callback) {
-      // allow direct server-to-server or tools with no origin
       if (!origin || origin === allowedOrigin || allowedOrigin === '*') {
         callback(null, true);
       } else {
@@ -62,11 +61,9 @@ async function initDb(retries = 10, delay = 3000) {
         queueLimit: 0,
       });
 
-      // test connection
       const [RESAULT] = await db.query('SELECT 1');
       console.log('MySQL connected successfully');
 
-      // create users table if missing
       const createUsersSql = `
         CREATE TABLE IF NOT EXISTS users (
           id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -194,10 +191,8 @@ app.post('/api/logout', (req, res) => {
   res.json({ message: 'Logged out' });
 });
 
-// 404
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 
-// central error handler
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err && err.stack ? err.stack : err);
   if (res.headersSent) return next(err);

@@ -147,7 +147,7 @@ export default function AuthPage() {
                         onChange={(e) => setConfirmPassword(e.target.value)}
                     />
 
-                    {signUpError && <p className="text-red-500">{signUpError}</p>}
+                    {signUpError && <p className="error-message">{signUpError}</p>}
                     <button type="submit" disabled={isLoading}>
                         {isLoading ? 'Signing Up...' : 'Sign Up'}
                     </button>
@@ -173,7 +173,7 @@ export default function AuthPage() {
                     />
 
                     {signInError && (
-                        <p className="text-red-500">{signInError}</p>
+                        <p className="error-message">{signInError}</p>
                     )}
                     <button type="submit" disabled={isLoading}>
                          {isLoading ? 'Signing In...' : 'Sign In'}

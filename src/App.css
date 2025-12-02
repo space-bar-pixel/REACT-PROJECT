@@ -280,3 +280,7 @@
         color: #333; 
     }
 }
+
+.error-message {
+  color: red !important;
+}
